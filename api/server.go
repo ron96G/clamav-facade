@@ -17,6 +17,21 @@ import (
 	"github.com/ron96G/clamav-facade/util"
 )
 
+var (
+	OpsSkipper = func(c echo.Context) bool {
+		return strings.HasPrefix(c.Path(), "/health") || strings.HasPrefix(c.Path(), "/ping") || c.Path() == "/"
+	}
+
+	LoggerConfig = echo_mw.LoggerConfig{
+		Skipper: OpsSkipper,
+		Format: `{"time":"${time_custom}","id":"${id}","remote_ip":"${remote_ip}",` +
+			`"host":"${host}","method":"${method}","path":"${path}","user_agent":"${user_agent}",` +
+			`"status_code":${status},"error":"${error}","elapsed_time":${latency}"` +
+			`,"request_length":${bytes_in},"response_length":${bytes_out}}` + "\n",
+		CustomTimeFormat: "2006-01-02T15:04:05.000Z",
+	}
+)
+
 func NewAPI(prefix, addr string, client Client, stopChan <-chan struct{}, logger util.Logger, tlsCfg *tls.Config) *API {
 	api := &API{
 		Prefix:   prefix,
@@ -30,8 +45,8 @@ func NewAPI(prefix, addr string, client Client, stopChan <-chan struct{}, logger
 
 	// general middleware
 	api.router.Use(echo_mw.Recover())
-	subrouter := api.router.Group(prefix)
-	subrouter.Use(echo_mw.Logger())
+	api.router.Use(echo_mw.RequestID())
+	api.router.Use(echo_mw.LoggerWithConfig(LoggerConfig))
 
 	// tracing middleware
 	c := jaegertracing.New(api.router, nil)
@@ -41,11 +56,10 @@ func NewAPI(prefix, addr string, client Client, stopChan <-chan struct{}, logger
 	}()
 
 	// metrics middleware
-	p := prometheus.NewPrometheus("clamav_facade", func(c echo.Context) bool {
-		return strings.HasPrefix(c.Path(), "/health") || strings.HasPrefix(c.Path(), "/ping") || c.Path() == "/"
-	})
+	p := prometheus.NewPrometheus("clamav_facade", OpsSkipper)
 	p.Use(api.router)
 
+	subrouter := api.router.Group(prefix)
 	// resources
 	subrouter.POST("/scan", api.Scan)
 	subrouter.PUT("/reload", api.Reload)
