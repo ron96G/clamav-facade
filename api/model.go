@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	echo "github.com/labstack/echo/v4"
-	"github.com/ron96G/clamav-facade/util"
+	log "github.com/ron96G/go-common-utils/log"
 )
 
 type Client interface {
@@ -23,7 +23,7 @@ type Client interface {
 type API struct {
 	Addr     string
 	Prefix   string
-	Log      util.Logger
+	Log      log.Logger
 	client   Client
 	router   *echo.Echo
 	server   *http.Server

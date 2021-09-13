@@ -34,8 +34,11 @@ func (a *API) Scan(e echo.Context) error {
 			break
 
 		} else {
-			a.Log.Infof("Scanned file '%s' with length %2.4fmb in %vms with result %v",
-				key, float64(headers[0].Size)/1024/1024, time.Since(start).Milliseconds(), ok,
+			a.Log.Info("Scanned file",
+				"filename", key,
+				"length", float64(headers[0].Size)/1024/1024,
+				"elapsed_time", time.Since(start).Milliseconds(),
+				"result", ok,
 			)
 			if !ok {
 				resp.Results = append(resp.Results, Result{ID: key, Status: "virus", Details: "file contains a virus"})

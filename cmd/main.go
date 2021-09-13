@@ -2,11 +2,10 @@ package cmd
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/ron96G/clamav-facade/api"
-	"github.com/sirupsen/logrus"
+	log "github.com/ron96G/go-common-utils/log"
 )
 
 var (
@@ -18,18 +17,20 @@ var (
 	shutdown = flag.Bool("shutdown", false, "shutdown clamd")
 )
 
-func Run(client api.Client, logger *logrus.Logger) {
+func Run(client api.Client, logger log.Logger) {
 	if *ping {
 		ok := client.Ping()
 		if !ok {
-			logger.Fatal(fmt.Errorf("failed to ping"))
+			logger.Error("failed to ping clamav")
+			os.Exit(1)
 		}
 	}
 
 	if *version {
 		version, err := client.Version()
 		if err != nil {
-			logger.Fatal(fmt.Errorf("failed to get version"))
+			logger.Error("failed to get version of clamav", "error", err)
+			os.Exit(1)
 		}
 		logger.Info(version)
 	}
@@ -37,7 +38,8 @@ func Run(client api.Client, logger *logrus.Logger) {
 	if *stats {
 		stats, err := client.Stats()
 		if err != nil {
-			logger.Fatal(fmt.Errorf("failed to get stats"))
+			logger.Error("failed to get stats of clamav", "error", err)
+			os.Exit(1)
 		}
 		logger.Info(stats)
 	}
@@ -45,7 +47,8 @@ func Run(client api.Client, logger *logrus.Logger) {
 	if *reload {
 		err := client.Reload()
 		if err != nil {
-			logger.Fatal(fmt.Errorf("failed to reload"))
+			logger.Error("failed to reload clamav", "error", err)
+			os.Exit(1)
 		}
 	}
 
@@ -55,18 +58,15 @@ func Run(client api.Client, logger *logrus.Logger) {
 
 		ok, err = client.ScanFile(*file)
 		if err != nil {
-			logger.Fatal(err)
+			logger.Error("failed to scan file", "error", err)
+			os.Exit(1)
 		}
 
 		if !ok {
-			if err != nil {
-				logger.Error(err)
-				os.Exit(1)
-			}
-			logger.Warnf("'%s' contains a virus", *file)
+			logger.Warn("virus found", "file", *file)
 			os.Exit(1)
 		}
-		logger.Infof("successfully scanned file '%s'", *file)
+		logger.Info("successfully scanned file", "file", *file)
 	}
 
 	if *shutdown {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ron96G/clamav-facade/util"
+	log "github.com/ron96G/go-common-utils/log"
 )
 
 var (
@@ -24,7 +24,7 @@ type ClamavClient struct {
 	Port            uint
 	Timeout         time.Duration
 	StreamMaxLength uint32
-	Log             util.Logger
+	Log             log.Logger
 	MaxSize         int
 	remoteAddr      *net.TCPAddr
 }
@@ -80,7 +80,7 @@ func (c *ClamavClient) Ping() (ok bool) {
 	if err != nil && err != io.EOF {
 		return false
 	}
-	c.Log.Debugf("Successfully read ping response: %s", string(buf))
+	c.Log.Debug("successfully read ping response", "response", string(buf))
 	return bytes.Equal(buf, pong)
 }
 
@@ -106,7 +106,7 @@ func (c *ClamavClient) Version() (version string, err error) {
 
 	resp := string(bytes.Trim(buf, "\x00"))
 	resp = strings.TrimSpace(resp)
-	c.Log.Debugf("Successfully read ping response: %s", resp)
+	c.Log.Debug("Successfully read ping response", "response", resp)
 	return resp, nil
 }
 
@@ -129,7 +129,7 @@ func (c *ClamavClient) Reload() (err error) {
 	if err != nil && err != io.EOF {
 		return fmt.Errorf("%w: failed to read response", err)
 	}
-	c.Log.Debugf("Successfully read reload response: %s", string(buf))
+	c.Log.Debug("successfully read reload response", "response", string(buf))
 	return nil
 }
 
@@ -138,14 +138,14 @@ func (c *ClamavClient) Shutdown() {
 	var err error
 	conn, err = c.getConn()
 	if err != nil {
-		c.Log.Warn(err)
+		c.Log.Warn("failed to get conn", "error", err)
 		return
 	}
 	defer c.releaseConn(conn)
 
 	_, err = conn.Write([]byte(`SHUTDOWN`))
 	if err != nil {
-		c.Log.Warn(err)
+		c.Log.Warn("failed to write command to clamav", "command", "shutdown", "error", err)
 		return
 	}
 }
@@ -154,14 +154,13 @@ func (c *ClamavClient) Stats() (stats string, err error) {
 	var conn net.Conn
 	conn, err = c.getConn()
 	if err != nil {
-		c.Log.Warn(err)
+		c.Log.Warn("failed to get conn", "error", err)
 		return "", fmt.Errorf("%w: failed to obtain connection", err)
 	}
 	defer c.releaseConn(conn)
 
 	_, err = conn.Write([]byte("zSTATS\000"))
 	if err != nil {
-		c.Log.Warn(err)
 		return "", fmt.Errorf("%w: failed to write command", err)
 	}
 
@@ -169,12 +168,11 @@ func (c *ClamavClient) Stats() (stats string, err error) {
 
 	_, err = conn.Read(buf)
 	if err != nil && err != io.EOF {
-		c.Log.Warn(err)
 		return "", fmt.Errorf("%w: failed to read response", err)
 	}
 	resp := string(bytes.Trim(buf, "\x00"))
 	resp = strings.TrimSpace(resp)
-	c.Log.Debugf("Successfully read stats response: %s", resp)
+	c.Log.Debug("successfully read reload response", "response", string(buf))
 	return resp, nil
 }
 
@@ -189,7 +187,7 @@ func (c *ClamavClient) ScanFile(rawURL string) (ok bool, err error) {
 			return false, err
 		}
 	}
-	c.Log.Debugf("File '%s' has length %d", rawURL, n)
+	c.Log.Debug("Trying to scan file", "filename", rawURL, "length", n)
 	if !c.CheckFilesize(n) {
 		return false, fmt.Errorf("file exceeded size limit")
 	}
@@ -219,13 +217,13 @@ func (c *ClamavClient) Scan(obj io.Reader) (ok bool, err error) {
 			if err != io.EOF {
 				return false, fmt.Errorf("%w: failed to read chunk", err)
 			}
-			c.Log.Debugf("Reached EOF after %d bytes", written+n)
+			c.Log.Debug("Reached EOF", "read_bytes", written+n)
 			break
 		}
 
 		chunkSize := make([]byte, 4)
 		binary.BigEndian.PutUint32(chunkSize, uint32(n))
-		c.Log.Tracef("Writing to clamd\nWrite: %d\nWritten: %d. Chunksize: %v", n, written, chunkSize)
+		c.Log.Debug("writign to clamav", "write", n, "written", written, "chunk_size", chunkSize)
 
 		_, err = conn.Write(chunkSize)
 		if err != nil {
@@ -250,7 +248,7 @@ func (c *ClamavClient) Scan(obj io.Reader) (ok bool, err error) {
 		return false, fmt.Errorf("%w: failed to read response", err)
 	}
 	resp := string(buf)
-	c.Log.Debugf("Successfully read stats response: %s", resp)
+	c.Log.Debug("successfully read reload response", "response", string(buf))
 
 	if !strings.Contains(resp, "OK") {
 		// its a virus
