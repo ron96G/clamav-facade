@@ -18,11 +18,12 @@ import (
 )
 
 var (
-	loglevel = flag.String("loglevel", "info", "loglevel of the application")
-	hostname = flag.String("hostname", "localhost", "the hostname of clamd")
-	port     = flag.Uint("port", 3310, "the port of clamd")
-	timeout  = flag.Int("timeout", 10, "clamd connection timeout in seconds")
-	maxSize  = flag.Int("maxsize", 25, "file size limit in mb")
+	loglevel  = flag.String("loglevel", "info", "loglevel of the application")
+	logformat = flag.String("logformat", "json", "logformat of the application")
+	hostname  = flag.String("hostname", "localhost", "the hostname of clamd")
+	port      = flag.Uint("port", 3310, "the port of clamd")
+	timeout   = flag.Int("timeout", 10, "clamd connection timeout in seconds")
+	maxSize   = flag.Int("maxsize", 25, "file size limit in mb")
 
 	startAPI  = flag.Bool("api", false, "start the API")
 	address   = flag.String("addr", "0.0.0.0:8080", "the address of the API (requires --api)")
@@ -35,7 +36,8 @@ var (
 func main() {
 
 	flag.Parse()
-	log.Configure(*loglevel, os.Stdout)
+	log.Reset()
+	log.Configure(*loglevel, *logformat, os.Stdout)
 
 	client, err := clamav.NewClamavClient(*hostname, *port, time.Duration(*timeout)*time.Second)
 	if err != nil {
