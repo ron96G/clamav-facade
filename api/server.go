@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/ron96G/go-common-utils/log"
+
 	"github.com/labstack/echo-contrib/jaegertracing"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	echo_mw "github.com/labstack/echo/v4/middleware"
-	"github.com/ron96G/clamav-facade/util"
 )
 
 var (
@@ -32,7 +33,7 @@ var (
 	}
 )
 
-func NewAPI(prefix, addr string, client Client, stopChan <-chan struct{}, logger util.Logger, tlsCfg *tls.Config) *API {
+func NewAPI(prefix, addr string, client Client, stopChan <-chan struct{}, logger log.Logger, tlsCfg *tls.Config) *API {
 	api := &API{
 		Prefix:   prefix,
 		Addr:     addr,
@@ -81,7 +82,7 @@ func (a *API) Run() {
 	var listener net.Listener
 	listener, err := net.Listen("tcp", a.Addr)
 	if err != nil {
-		a.Log.Fatal(err)
+		a.Log.Error("failed to open tcp port", "error", err, "addr", a.Addr)
 	}
 
 	if a.tlsCfg != nil {
@@ -94,9 +95,9 @@ func (a *API) Run() {
 	}
 
 	go func() {
-		a.Log.Infof("Starting API server on address %s://%s%s", schema, a.Addr, a.Prefix)
+		a.Log.Info("Starting API server", "addr", fmt.Sprintf("%s://%s%s", schema, a.Addr, a.Prefix))
 		if err := a.server.Serve(listener); err != http.ErrServerClosed && err != nil {
-			a.Log.Fatal(err)
+			a.Log.Error("fatal error when starting server", "error", err)
 		}
 	}()
 
@@ -105,7 +106,7 @@ func (a *API) Run() {
 
 	a.Log.Warn("Shutting down API")
 	if err := a.server.Shutdown(context.TODO()); err != nil {
-		a.Log.Fatalf("api server shutdown failed: %v", err)
+		a.Log.Error("api server shutdown failed", "error", err)
 	}
 }
 
