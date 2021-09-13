@@ -11,6 +11,10 @@ func (a *API) Scan(e echo.Context) error {
 	resp := newResponse()
 	statusCode := 200
 
+	if req.MultipartForm == nil || len(req.MultipartForm.File) == 0 {
+		return returnJSON(e, 400, map[string]interface{}{"message": "Invalid Request Type"})
+	}
+
 	req.ParseMultipartForm(32 << 20) // limit the maximum memory when parsing request to 32MB
 
 	for key, headers := range req.MultipartForm.File {

@@ -29,7 +29,7 @@ var (
 			`"host":"${host}","method":"${method}","path":"${path}","user_agent":"${user_agent}",` +
 			`"status_code":${status},"error":"${error}","elapsed_time":${latency}` +
 			`,"request_length":${bytes_in},"response_length":${bytes_out}}` + "\n",
-		CustomTimeFormat: "2006-01-02T15:04:05.000Z",
+		CustomTimeFormat: time.RFC3339,
 	}
 )
 
