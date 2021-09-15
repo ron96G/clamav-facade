@@ -13,13 +13,10 @@ func (a *API) Scan(e echo.Context) error {
 	var err error
 	statusCode := 200
 
-	if req.MultipartForm == nil || len(req.MultipartForm.File) == 0 {
-		return returnJSON(e, 400, map[string]interface{}{"message": "invalid request type"})
-	}
-
 	// limit the maximum memory when parsing request to 32MB
 	if err = req.ParseMultipartForm(32 << 20); err != nil {
-		return returnJSON(e, 500, map[string]interface{}{"message": "failed to parse multipartform"})
+		a.Log.Warn("Unable to parse multipartform", "error", err)
+		return returnJSON(e, 400, map[string]interface{}{"message": "failed to parse multipartform"})
 	}
 
 	var file multipart.File
@@ -34,6 +31,7 @@ func (a *API) Scan(e echo.Context) error {
 		defer file.Close()
 
 		if !a.client.CheckFilesize(int(headers[0].Size)) {
+			a.Log.Warn("Rejected file due to length", "filename", key, "length", float64(headers[0].Size)/1024/1024)
 			resp.Results = append(resp.Results, Result{ID: key, Status: "failed", Details: "file size limit exceeded"})
 			statusCode = 400
 			break
@@ -41,6 +39,7 @@ func (a *API) Scan(e echo.Context) error {
 		start := time.Now()
 		ok, err = a.client.Scan(file)
 		if err != nil {
+			a.Log.Error("Failed to scan file", "filename", key, "error", err)
 			resp.Results = append(resp.Results, Result{ID: key, Status: "failed", Details: err.Error()})
 			statusCode = 502
 			break
@@ -71,6 +70,7 @@ func (a *API) Ping(e echo.Context) (err error) {
 	statusCode := 200
 
 	if !ok {
+		a.Log.Error("Failed to ping clamav")
 		resp.Results = append(resp.Results, Result{Status: "failed", Details: "clamav is not ready"})
 		statusCode = 502
 
@@ -86,6 +86,7 @@ func (a *API) Reload(e echo.Context) error {
 
 	statusCode := 201
 	if err != nil {
+		a.Log.Error("Failed to reload clamav", "error", err)
 		resp.Results = append(resp.Results, Result{Status: "failed", Details: err.Error()})
 		statusCode = 502
 
@@ -102,6 +103,7 @@ func (a *API) Stats(e echo.Context) error {
 	statusCode := 200
 
 	if err != nil {
+		a.Log.Error("Failed to get stats of clamav", "error", err)
 		resp.Results = append(resp.Results, Result{Status: "failed", Details: err.Error()})
 		statusCode = 502
 	} else {
