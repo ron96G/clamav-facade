@@ -1,6 +1,7 @@
 package api
 
 import (
+	"mime/multipart"
 	"time"
 
 	echo "github.com/labstack/echo/v4"
@@ -9,12 +10,23 @@ import (
 func (a *API) Scan(e echo.Context) error {
 	req := e.Request()
 	resp := newResponse()
+	var err error
 	statusCode := 200
 
-	req.ParseMultipartForm(32 << 20) // limit the maximum memory when parsing request to 32MB
+	if req.MultipartForm == nil || len(req.MultipartForm.File) == 0 {
+		return returnJSON(e, 400, map[string]interface{}{"message": "invalid request type"})
+	}
 
+	// limit the maximum memory when parsing request to 32MB
+	if err = req.ParseMultipartForm(32 << 20); err != nil {
+		return returnJSON(e, 500, map[string]interface{}{"message": "failed to parse multipartform"})
+	}
+
+	var file multipart.File
+	var ok bool
 	for key, headers := range req.MultipartForm.File {
-		file, _, err := req.FormFile(key)
+
+		file, _, err = req.FormFile(key)
 		if err != nil {
 			resp.Results = append(resp.Results, Result{ID: key, Status: "failed", Details: err.Error()})
 			return returnJSON(e, 400, resp)
@@ -27,7 +39,7 @@ func (a *API) Scan(e echo.Context) error {
 			break
 		}
 		start := time.Now()
-		ok, err := a.client.Scan(file)
+		ok, err = a.client.Scan(file)
 		if err != nil {
 			resp.Results = append(resp.Results, Result{ID: key, Status: "failed", Details: err.Error()})
 			statusCode = 502
