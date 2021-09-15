@@ -20,7 +20,7 @@ import (
 
 var (
 	OpsSkipper = func(c echo.Context) bool {
-		return strings.HasPrefix(c.Path(), "/health") || strings.HasPrefix(c.Path(), "/ping") || c.Path() == "/"
+		return strings.HasPrefix(c.Path(), "/health") || strings.HasPrefix(c.Path(), "/ping") || c.Path() == "/metrics"
 	}
 
 	LoggerConfig = echo_mw.LoggerConfig{
@@ -30,6 +30,10 @@ var (
 			`"status_code":${status},"error":"${error}","elapsed_time":${latency}` +
 			`,"request_length":${bytes_in},"response_length":${bytes_out}}` + "\n",
 		CustomTimeFormat: time.RFC3339,
+	}
+
+	RequestIDConfig = echo_mw.RequestIDConfig{
+		Skipper: OpsSkipper,
 	}
 )
 
@@ -46,7 +50,7 @@ func NewAPI(prefix, addr string, client Client, stopChan <-chan struct{}, logger
 
 	// general middleware
 	api.router.Use(echo_mw.Recover())
-	api.router.Use(echo_mw.RequestID())
+	api.router.Use(echo_mw.RequestIDWithConfig(RequestIDConfig))
 	api.router.Use(echo_mw.LoggerWithConfig(LoggerConfig))
 
 	// tracing middleware
