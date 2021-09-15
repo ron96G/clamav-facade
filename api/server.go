@@ -26,7 +26,7 @@ var (
 	LoggerConfig = echo_mw.LoggerConfig{
 		Skipper: OpsSkipper,
 		Format: `{"time":"${time_custom}","id":"${id}","remote_ip":"${remote_ip}",` +
-			`"host":"${host}","method":"${method}","path":"${path}","user_agent":"${user_agent}",` +
+			`"method":"${method}","path":"${path}","user_agent":"${user_agent}",` +
 			`"status_code":${status},"error":"${error}","elapsed_time":${latency}` +
 			`,"request_length":${bytes_in},"response_length":${bytes_out}}` + "\n",
 		CustomTimeFormat: time.RFC3339,
