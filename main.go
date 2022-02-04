@@ -22,7 +22,7 @@ var (
 	logformat = flag.String("logformat", "json", "logformat of the application")
 	hostname  = flag.String("client.hostname", "localhost", "the hostname of clamd")
 	port      = flag.Uint("client.port", 3310, "the port of clamd")
-	timeout   = flag.Int("client.timeout", 10, "clamd connection timeout in seconds")
+	timeout   = flag.Duration("client.timeout", time.Second*10, "clamd connection timeout")
 	maxSize   = flag.Int("maxsize", 25, "file size limit in mb")
 
 	startAPI     = flag.Bool("api", false, "start the API")
