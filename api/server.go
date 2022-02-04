@@ -39,12 +39,15 @@ var (
 
 func NewAPI(prefix, addr string, client Client, stopChan <-chan struct{}, logger log.Logger, tlsCfg *tls.Config) *API {
 	api := &API{
-		Prefix:   prefix,
-		Addr:     addr,
-		client:   client,
-		router:   echo.New(),
-		tlsCfg:   tlsCfg,
-		StopChan: stopChan,
+		Prefix:       prefix,
+		Addr:         addr,
+		client:       client,
+		router:       echo.New(),
+		tlsCfg:       tlsCfg,
+		StopChan:     stopChan,
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 	api.Log = logger
 
@@ -79,9 +82,9 @@ func (a *API) Run() {
 	a.server = &http.Server{
 		Addr:         a.Addr,
 		Handler:      a.router,
-		IdleTimeout:  30 * time.Second,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  a.IdleTimeout,
+		ReadTimeout:  a.ReadTimeout,
+		WriteTimeout: a.WriteTimeout,
 	}
 	var listener net.Listener
 	listener, err := net.Listen("tcp", a.Addr)

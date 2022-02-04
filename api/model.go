@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"io"
 	"net/http"
+	"time"
 
 	echo "github.com/labstack/echo/v4"
 	log "github.com/ron96G/go-common-utils/log"
@@ -21,14 +22,17 @@ type Client interface {
 }
 
 type API struct {
-	Addr     string
-	Prefix   string
-	Log      log.Logger
-	client   Client
-	router   *echo.Echo
-	server   *http.Server
-	tlsCfg   *tls.Config
-	StopChan <-chan struct{}
+	Addr         string
+	Prefix       string
+	Log          log.Logger
+	client       Client
+	router       *echo.Echo
+	server       *http.Server
+	tlsCfg       *tls.Config
+	StopChan     <-chan struct{}
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	IdleTimeout  time.Duration
 }
 type Result struct {
 	ID      string      `json:"id,omitempty"`
