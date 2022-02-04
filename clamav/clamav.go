@@ -35,6 +35,7 @@ func NewClamavClient(hostname string, port uint, timeout time.Duration) (c *Clam
 		Port:     port,
 		Timeout:  timeout,
 		MaxSize:  defaultMaxSize,
+		Log:      log.New("clamav_client"),
 	}
 	c.remoteAddr, err = net.ResolveTCPAddr("tcp", c.address())
 	if err != nil {
@@ -48,11 +49,14 @@ func (c *ClamavClient) address() string {
 }
 
 func (c *ClamavClient) getConn() (conn net.Conn, err error) {
+	c.Log.Debug("connecting to clamav", "address", c.remoteAddr)
 	conn, err = net.DialTCP("tcp", nil, c.remoteAddr)
 	if err != nil {
 		return nil, err
 	}
-	err = conn.SetDeadline(time.Now().Add(c.Timeout))
+	deadline := time.Now().Add(c.Timeout)
+	c.Log.Debug("setting deadline", "deadline", deadline)
+	err = conn.SetDeadline(deadline)
 	return
 }
 
@@ -61,9 +65,7 @@ func (c *ClamavClient) releaseConn(conn net.Conn) {
 }
 
 func (c *ClamavClient) Ping() (ok bool) {
-	var conn net.Conn
-	var err error
-	conn, err = c.getConn()
+	conn, err := c.getConn()
 	if err != nil {
 		return false
 	}

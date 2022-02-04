@@ -41,7 +41,7 @@ func main() {
 	log.Reset()
 	log.Configure(*loglevel, *logformat, os.Stdout)
 
-	client, err := clamav.NewClamavClient(*hostname, *port, time.Duration(*timeout)*time.Second)
+	client, err := clamav.NewClamavClient(*hostname, *port, *timeout)
 	if err != nil {
 		log.Error("failed to create new clamav client", "error", err.Error())
 	}
