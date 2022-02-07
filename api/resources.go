@@ -16,7 +16,8 @@ func (a *API) Scan(e echo.Context) error {
 	// limit the maximum memory when parsing request to 32MB
 	if err = req.ParseMultipartForm(32 << 20); err != nil {
 		a.Log.Warn("Unable to parse multipartform", "error", err)
-		return returnJSON(e, 400, map[string]interface{}{"message": "failed to parse multipartform"})
+		resp.Results = append(resp.Results, Result{Status: "failed", Details: err.Error()})
+		return returnJSON(e, 400, resp)
 	}
 
 	var file multipart.File
@@ -37,7 +38,7 @@ func (a *API) Scan(e echo.Context) error {
 			break
 		}
 		start := time.Now()
-		ok, err = a.client.Scan(file)
+		ok, err = a.client.Scan(req.Context(), file)
 		if err != nil {
 			a.Log.Error("Failed to scan file", "filename", key, "error", err)
 			resp.Results = append(resp.Results, Result{ID: key, Status: "failed", Details: err.Error()})
@@ -65,7 +66,7 @@ func (a *API) Scan(e echo.Context) error {
 }
 
 func (a *API) Ping(e echo.Context) (err error) {
-	ok := a.client.Ping()
+	ok := a.client.Ping(e.Request().Context())
 	resp := newResponse()
 	statusCode := 200
 
@@ -81,7 +82,7 @@ func (a *API) Ping(e echo.Context) (err error) {
 }
 
 func (a *API) Reload(e echo.Context) error {
-	err := a.client.Reload()
+	err := a.client.Reload(e.Request().Context())
 	resp := newResponse()
 
 	statusCode := 201
@@ -98,7 +99,7 @@ func (a *API) Reload(e echo.Context) error {
 }
 
 func (a *API) Stats(e echo.Context) error {
-	stats, err := a.client.Stats()
+	stats, err := a.client.Stats(e.Request().Context())
 	resp := newResponse()
 	statusCode := 200
 

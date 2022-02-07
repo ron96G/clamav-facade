@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"flag"
 	"os"
+	"time"
 
 	"github.com/ron96G/clamav-facade/api"
 	log "github.com/ron96G/go-common-utils/log"
@@ -18,8 +20,10 @@ var (
 )
 
 func Run(client api.Client, logger log.Logger) {
+	ctx := context.Background()
+
 	if *ping {
-		ok := client.Ping()
+		ok := client.Ping(ctx)
 		if !ok {
 			logger.Error("failed to ping clamav")
 			os.Exit(1)
@@ -27,7 +31,7 @@ func Run(client api.Client, logger log.Logger) {
 	}
 
 	if *version {
-		version, err := client.Version()
+		version, err := client.Version(ctx)
 		if err != nil {
 			logger.Error("failed to get version of clamav", "error", err)
 			os.Exit(1)
@@ -36,7 +40,7 @@ func Run(client api.Client, logger log.Logger) {
 	}
 
 	if *stats {
-		stats, err := client.Stats()
+		stats, err := client.Stats(ctx)
 		if err != nil {
 			logger.Error("failed to get stats of clamav", "error", err)
 			os.Exit(1)
@@ -45,7 +49,7 @@ func Run(client api.Client, logger log.Logger) {
 	}
 
 	if *reload {
-		err := client.Reload()
+		err := client.Reload(ctx)
 		if err != nil {
 			logger.Error("failed to reload clamav", "error", err)
 			os.Exit(1)
@@ -55,22 +59,25 @@ func Run(client api.Client, logger log.Logger) {
 	if *file != "" {
 		var ok bool
 		var err error
+		start := time.Now()
 
-		ok, err = client.ScanFile(*file)
+		logger.Info("scanning file", "file", *file)
+
+		ok, err = client.ScanFile(ctx, *file)
 		if err != nil {
-			logger.Error("failed to scan file", "error", err)
+			logger.Error("failed to scan file", "error", err, "elapsed_time", time.Since(start))
 			os.Exit(1)
 		}
 
 		if !ok {
-			logger.Warn("virus found", "file", *file)
+			logger.Warn("virus found", "file", *file, "elapsed_time", time.Since(start))
 			os.Exit(1)
 		}
-		logger.Info("successfully scanned file", "file", *file)
+		logger.Info("successfully scanned file", "file", *file, "elapsed_time", time.Since(start))
 	}
 
 	if *shutdown {
-		client.Shutdown()
+		client.Shutdown(ctx)
 	}
 
 }

@@ -102,6 +102,7 @@ func (a *API) Run() {
 	}
 
 	go func() {
+		a.Log.Debug(a.ToString())
 		a.Log.Info("Starting API server", "addr", fmt.Sprintf("%s://%s%s", schema, a.Addr, a.Prefix))
 		if err := a.server.Serve(listener); err != http.ErrServerClosed && err != nil {
 			a.Log.Error("fatal error when starting server", "error", err)
@@ -112,7 +113,7 @@ func (a *API) Run() {
 	<-a.StopChan
 
 	a.Log.Warn("Shutting down API")
-	if err := a.server.Shutdown(context.TODO()); err != nil {
+	if err := a.server.Shutdown(context.Background()); err != nil {
 		a.Log.Error("api server shutdown failed", "error", err)
 	}
 }

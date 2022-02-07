@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -11,13 +13,13 @@ import (
 )
 
 type Client interface {
-	Scan(io.Reader) (bool, error)
-	ScanFile(string) (bool, error)
-	Stats() (string, error)
-	Reload() error
-	Version() (string, error)
-	Ping() bool
-	Shutdown()
+	Scan(context.Context, io.Reader) (bool, error)
+	ScanFile(context.Context, string) (bool, error)
+	Stats(ctx context.Context) (string, error)
+	Reload(ctx context.Context) error
+	Version(ctx context.Context) (string, error)
+	Ping(ctx context.Context) bool
+	Shutdown(ctx context.Context)
 	CheckFilesize(int) bool
 }
 
@@ -34,6 +36,14 @@ type API struct {
 	WriteTimeout time.Duration
 	IdleTimeout  time.Duration
 }
+
+func (a *API) ToString() string {
+	return fmt.Sprintf(
+		"addr='%s', prefix='%s', read_timeout='%s', write_timeout='%s', idle_timeout='%s'",
+		a.Addr, a.Prefix, a.ReadTimeout, a.WriteTimeout, a.IdleTimeout,
+	)
+}
+
 type Result struct {
 	ID      string      `json:"id,omitempty"`
 	Status  string      `json:"status,omitempty"`

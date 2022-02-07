@@ -15,9 +15,14 @@ import (
 	"github.com/ron96G/clamav-facade/api"
 	"github.com/ron96G/clamav-facade/clamav"
 	"github.com/ron96G/clamav-facade/cmd"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 var (
+	enablePprof = flag.Bool("pprof", false, "enable pprof")
+
 	loglevel  = flag.String("loglevel", "info", "loglevel of the application")
 	logformat = flag.String("logformat", "json", "logformat of the application")
 	hostname  = flag.String("client.hostname", "localhost", "the hostname of clamd")
@@ -36,16 +41,21 @@ var (
 )
 
 func main() {
-
 	flag.Parse()
 	log.Reset()
 	log.Configure(*loglevel, *logformat, os.Stdout)
+
+	if *enablePprof {
+		go func() {
+			log.Info("pprof server shutdown", "error", http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
 
 	client, err := clamav.NewClamavClient(*hostname, *port, *timeout)
 	if err != nil {
 		log.Error("failed to create new clamav client", "error", err.Error())
 	}
-	client.MaxSize = *maxSize * 1024 * 1024
+	client.SetMaxSize(*maxSize * 1024 * 1024)
 	client.Log = log.New("client_logger")
 
 	// API config
@@ -66,6 +76,15 @@ func main() {
 			if err != nil {
 				log.Error("failed to setup tls config", "error", err)
 			}
+		}
+
+		// If the API write timeout is lower than the client timeout, the api request will timeout without
+		// an error. Therefore, the client timeout must be lower to prevent this.
+		if *timeoutWrite <= *timeout {
+			// The new client timeout is 90% of the write timeout
+			newTimeout := time.Duration(float64(*timeoutWrite) * 0.9)
+			log.Warn("Client timeout exceeds write timeout...", "client_timeout", newTimeout)
+			client.SetDefaultTimeout(newTimeout)
 		}
 
 		stopChan := SetupSignalHandler()
