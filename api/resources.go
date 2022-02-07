@@ -66,13 +66,13 @@ func (a *API) Scan(e echo.Context) error {
 }
 
 func (a *API) Ping(e echo.Context) (err error) {
-	ok := a.client.Ping(e.Request().Context())
+	ok, err := a.client.Ping(e.Request().Context())
 	resp := newResponse()
 	statusCode := 200
 
 	if !ok {
-		a.Log.Error("Failed to ping clamav")
-		resp.Results = append(resp.Results, Result{Status: "failed", Details: "clamav is not ready"})
+		a.Log.Error("Failed to ping clamav", "error", err)
+		resp.Results = append(resp.Results, Result{Status: "failed", Details: err.Error()})
 		statusCode = 502
 
 	} else {
@@ -88,7 +88,7 @@ func (a *API) Reload(e echo.Context) error {
 	statusCode := 201
 	if err != nil {
 		a.Log.Error("Failed to reload clamav", "error", err)
-		resp.Results = append(resp.Results, Result{Status: "failed", Details: err.Error()})
+		resp.Results = append(resp.Results, Result{Status: "failed", Details: "clamav is not ready"})
 		statusCode = 502
 
 	} else {

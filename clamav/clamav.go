@@ -97,27 +97,28 @@ func (c *ClamavClient) releaseBuffer(buf *bytes.Buffer) {
 	c.bufferPool.Put(buf)
 }
 
-func (c *ClamavClient) Ping(ctx context.Context) (ok bool) {
+func (c *ClamavClient) Ping(ctx context.Context) (ok bool, err error) {
 	conn, err := c.getConn(ctx)
 	if err != nil {
-		return false
+		return false, err
 	}
 	defer c.releaseConn(conn)
 
 	_, err = conn.Write([]byte(`PING`))
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	buf := c.borrowBuffer()
+	buf.Reset()
 	defer c.releaseBuffer(buf)
 	_, err = io.Copy(buf, conn)
 	if err != nil && err != io.EOF {
-		return false
+		return false, err
 	}
 	resp := buf.String()
 	c.Log.Debug("successfully read ping response", "response", resp)
-	return strings.TrimSpace(resp) == "PONG"
+	return strings.TrimSpace(resp) == "PONG", nil
 }
 
 func (c *ClamavClient) Version(ctx context.Context) (version string, err error) {
