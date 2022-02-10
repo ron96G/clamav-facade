@@ -97,16 +97,16 @@ func (c *ClamavClient) releaseBuffer(buf *bytes.Buffer) {
 	c.bufferPool.Put(buf)
 }
 
-func (c *ClamavClient) Ping(ctx context.Context) (ok bool, err error) {
+func (c *ClamavClient) Ping(ctx context.Context) (err error) {
 	conn, err := c.getConn(ctx)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer c.releaseConn(conn)
 
-	_, err = conn.Write([]byte(`PING`))
+	_, err = conn.Write([]byte("PING\000"))
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	buf := c.borrowBuffer()
@@ -114,11 +114,14 @@ func (c *ClamavClient) Ping(ctx context.Context) (ok bool, err error) {
 	defer c.releaseBuffer(buf)
 	_, err = io.Copy(buf, conn)
 	if err != nil && err != io.EOF {
-		return false, err
+		return err
 	}
 	resp := buf.String()
 	c.Log.Debug("successfully read ping response", "response", resp)
-	return strings.TrimSpace(resp) == "PONG", nil
+	if strings.TrimSpace(resp) == "PONG" {
+		return nil
+	}
+	return fmt.Errorf("clamav is not ready yet")
 }
 
 func (c *ClamavClient) Version(ctx context.Context) (version string, err error) {
@@ -129,7 +132,7 @@ func (c *ClamavClient) Version(ctx context.Context) (version string, err error) 
 	}
 	defer c.releaseConn(conn)
 
-	_, err = conn.Write([]byte(`VERSION`))
+	_, err = conn.Write([]byte("VERSION\000"))
 	if err != nil {
 		return "", fmt.Errorf("%w: failed to write command", err)
 	}
@@ -156,7 +159,7 @@ func (c *ClamavClient) Reload(ctx context.Context) (err error) {
 	}
 	defer c.releaseConn(conn)
 
-	_, err = conn.Write([]byte(`RELOAD`))
+	_, err = conn.Write([]byte("RELOAD\000"))
 	if err != nil {
 		return fmt.Errorf("%w: failed to write command", err)
 	}
@@ -182,7 +185,7 @@ func (c *ClamavClient) Shutdown(ctx context.Context) {
 	}
 	defer c.releaseConn(conn)
 
-	_, err = conn.Write([]byte(`SHUTDOWN`))
+	_, err = conn.Write([]byte("SHUTDOWN\000"))
 	if err != nil {
 		c.Log.Warn("failed to write command to clamav", "command", "shutdown", "error", err)
 		return

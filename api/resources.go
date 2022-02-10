@@ -13,8 +13,10 @@ func (a *API) Scan(e echo.Context) error {
 	var err error
 	statusCode := 200
 
-	// limit the maximum memory when parsing request to 32MB
-	if err = req.ParseMultipartForm(32 << 20); err != nil {
+	a.Log.Debug("Content-Type", "value", req.Header.Get("Content-Type"))
+
+	// limit the maximum memory when parsing request to 16MB
+	if err = req.ParseMultipartForm(32 << 19); err != nil {
 		a.Log.Warn("Unable to parse multipartform", "error", err)
 		resp.Results = append(resp.Results, Result{Status: "failed", Details: err.Error()})
 		return returnJSON(e, 400, resp)
@@ -66,11 +68,11 @@ func (a *API) Scan(e echo.Context) error {
 }
 
 func (a *API) Ping(e echo.Context) (err error) {
-	ok, err := a.client.Ping(e.Request().Context())
+	err = a.client.Ping(e.Request().Context())
 	resp := newResponse()
 	statusCode := 200
 
-	if !ok {
+	if err != nil {
 		a.Log.Error("Failed to ping clamav", "error", err)
 		resp.Results = append(resp.Results, Result{Status: "failed", Details: err.Error()})
 		statusCode = 502

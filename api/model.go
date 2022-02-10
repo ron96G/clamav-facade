@@ -18,7 +18,7 @@ type Client interface {
 	Stats(ctx context.Context) (string, error)
 	Reload(ctx context.Context) error
 	Version(ctx context.Context) (string, error)
-	Ping(ctx context.Context) (bool, error)
+	Ping(ctx context.Context) error
 	Shutdown(ctx context.Context)
 	CheckFilesize(int) bool
 }

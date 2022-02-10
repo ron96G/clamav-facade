@@ -4,19 +4,23 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
 type MockServer struct {
 	host     string
-	port     string
-	expected map[Command]struct {
-		times       int
-		commandType CommandType
-	}
+	port     int
+	listener net.Listener
+	once     sync.Once
+	expected map[Command]Expectation
+}
+
+type Expectation struct {
+	times       int
+	commandType CommandType
 }
 
 type isExpectedFunc func(command Command) (bool, CommandType)
@@ -30,20 +34,26 @@ type CommandType string
 type Command string
 
 const (
-	FAIL  CommandType = "FAIL"
-	VIRUS CommandType = "VIRUS"
-	OK    CommandType = "OK"
+	RETURN_FAIL  CommandType = "FAIL"
+	RETURN_VIRUS CommandType = "VIRUS"
+	RETURN_OK    CommandType = "OK"
 
-	Z_INSTREAM = "zINSTREAM"
+	INSTREAM = "zINSTREAM"
+	PING     = "PING"
+	STATS    = "zSTATS"
+	RELOAD   = "RELOAD"
 )
 
-func NewMockServer(host, port string) *MockServer {
+func NewMockServer(host string, port int) *MockServer {
 	return &MockServer{
-		host, port, make(map[Command]struct {
-			times       int
-			commandType CommandType
-		}),
+		host:     host,
+		port:     port,
+		expected: make(map[Command]Expectation),
 	}
+}
+
+func (server *MockServer) GetExpected() map[Command]Expectation {
+	return server.expected
 }
 
 func (server *MockServer) Expect(command Command, times int, commandType CommandType) {
@@ -63,16 +73,23 @@ func (server *MockServer) isExpected(command Command) (bool, CommandType) {
 	return false, ""
 }
 
-func (server *MockServer) Run() {
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%s", server.host, server.port))
-	if err != nil {
-		log.Fatal(err)
+func (server *MockServer) Shutdown() {
+	if server.listener != nil {
+		server.once.Do(func() { server.listener.Close() })
 	}
-	defer listener.Close()
+}
+
+func (server *MockServer) Run() {
+	var err error
+	server.listener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", server.host, server.port))
+	if err != nil {
+		panic(err)
+	}
+	defer server.Shutdown()
 	for {
-		conn, err := listener.Accept()
+		conn, err := server.listener.Accept()
 		if err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 
 		fmt.Printf("Connection accepted: %s\n", conn.RemoteAddr().String())
@@ -91,41 +108,88 @@ func (client *TcpClient) shutdownWrite() {
 	}
 }
 
+func (client *TcpClient) expectedOrDie(command Command) CommandType {
+	expected, commandType := client.isExpected(command)
+	if !expected {
+		panic("unexpected \"" + string(command) + "\" command")
+	}
+	return commandType
+}
+
 func (client *TcpClient) handleRequest() {
 	reader := bufio.NewReader(client.conn)
-	defer client.conn.Close()
 	writer := client.conn.(io.Writer)
-	command, err := reader.ReadString('\000')
+	defer client.conn.Close()
 
+	command, err := reader.ReadString('\000')
 	if err != nil {
 		panic(err)
 	}
 
-	switch strings.Trim(command, "\000") {
+	command = strings.Trim(command, "\000")
 
-	case "zINSTREAM":
-		var resp []byte
-
-		fmt.Println("zINSTREAM COMMAND")
-		reader.ReadString('\000')
+	var resp []byte
+	fmt.Printf("Received command: \"%s\"\n", command)
+	switch command {
+	case INSTREAM:
 		time.Sleep(1 * time.Second)
 
-		expected, commandType := client.isExpected(Z_INSTREAM)
-
-		if !expected {
-			panic("unexpected zINSTREAM command")
-		}
-
-		if commandType == FAIL {
+		commandType := client.expectedOrDie(Command(command))
+		if commandType == RETURN_FAIL {
 			return // close connection
-
-		} else if commandType == OK {
+		} else if commandType == RETURN_OK {
 			resp = []byte("Stream: OK\n")
-
 		} else {
 			resp = []byte("Stream: Virus\n")
 		}
+		_, err := writer.Write(resp)
+		if err != nil {
+			panic(err)
+		}
 
+	case PING:
+		time.Sleep(1 * time.Second)
+
+		commandType := client.expectedOrDie(Command(command))
+		if commandType == RETURN_FAIL {
+			return // close connection
+		} else if commandType == RETURN_OK {
+			resp = []byte("PONG\n")
+		} else {
+			resp = []byte("FOOBAR\n")
+		}
+		_, err := writer.Write(resp)
+		if err != nil {
+			panic(err)
+		}
+
+	case STATS:
+		time.Sleep(1 * time.Second)
+
+		commandType := client.expectedOrDie(Command(command))
+		if commandType == RETURN_FAIL {
+			return // close connection
+		} else if commandType == RETURN_OK {
+			resp = []byte("PONG\n")
+		} else {
+			resp = []byte("FOOBAR\n")
+		}
+		_, err := writer.Write(resp)
+		if err != nil {
+			panic(err)
+		}
+
+	case RELOAD:
+		time.Sleep(1 * time.Second)
+
+		commandType := client.expectedOrDie(Command(command))
+		if commandType == RETURN_FAIL {
+			return // close connection
+		} else if commandType == RETURN_OK {
+			resp = []byte("PONG\n")
+		} else {
+			resp = []byte("FOOBAR\n")
+		}
 		_, err := writer.Write(resp)
 		if err != nil {
 			panic(err)

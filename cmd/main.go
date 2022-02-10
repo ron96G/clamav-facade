@@ -23,13 +23,9 @@ func Run(client api.Client, logger log.Logger) {
 	ctx := context.Background()
 
 	if *ping {
-		ok, err := client.Ping(ctx)
-		if !ok {
-			if err != nil {
-				logger.Error("failed to ping clamav", "error", err)
-				os.Exit(1)
-			}
-			logger.Error("failed to ping clamav but no error")
+		err := client.Ping(ctx)
+		if err != nil {
+			logger.Error("failed to ping clamav", "error", err)
 			os.Exit(1)
 		}
 	}
